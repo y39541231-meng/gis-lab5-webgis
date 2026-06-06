@@ -53,9 +53,28 @@
             font-family: Arial, sans-serif;
             box-shadow: 0 1px 5px rgba(0,0,0,0.35);
         }
-        .ol-scale-line {
+
+        .custom-scale-box {
+            position: absolute;
             left: 12px;
             bottom: 28px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 6px 10px 8px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.35);
+            text-align: center;
+            min-width: 110px;
+        }
+
+        .custom-scale-line {
+            height: 6px;
+            border-left: 2px solid #333;
+            border-right: 2px solid #333;
+            border-bottom: 3px solid #333;
+            margin-top: 3px;
         }
         </style>
 
@@ -68,6 +87,12 @@
                 <a href="#" id="popup-closer" class="ol-popup-closer"></a>
                 <div id="popup-content"></div>
             </div>
+
+            <div id="custom-scale" class="custom-scale-box">
+                <div id="scale-text">Scale</div>
+                <div id="scale-line" class="custom-scale-line"></div>
+            </div>
+
             <div id="mouse-position" class="mouse-position-box">Move mouse over map</div>
         </div>
 
@@ -83,21 +108,65 @@
 
         <script>
         window.addEventListener('load', function () {
-            if (typeof map !== 'undefined') {
-                map.addControl(new ol.control.ScaleLine({
-                    units: 'metric',
-                    bar: false,
-                    steps: 4,
-                    text: true,
-                    minWidth: 100
-                }));
+            function addCustomControls() {
+                if (typeof map === 'undefined') {
+                    setTimeout(addCustomControls, 500);
+                    return;
+                }
 
                 map.on('pointermove', function (evt) {
                     var coord = ol.proj.toLonLat(evt.coordinate);
                     document.getElementById('mouse-position').innerHTML =
                         coord[0].toFixed(4) + ', ' + coord[1].toFixed(4);
                 });
+
+                function updateScale() {
+                    var view = map.getView();
+                    var resolution = view.getResolution();
+                    var center = view.getCenter();
+                    var projection = view.getProjection();
+                    var metersPerUnit = projection.getMetersPerUnit() || 1;
+
+                    var scaleWidthPx = 100;
+                    var meters = resolution * metersPerUnit * scaleWidthPx;
+
+                    var niceMeters;
+                    if (meters >= 1000000) {
+                        niceMeters = Math.round(meters / 1000000) * 1000000;
+                    } else if (meters >= 100000) {
+                        niceMeters = Math.round(meters / 100000) * 100000;
+                    } else if (meters >= 10000) {
+                        niceMeters = Math.round(meters / 10000) * 10000;
+                    } else if (meters >= 1000) {
+                        niceMeters = Math.round(meters / 1000) * 1000;
+                    } else if (meters >= 100) {
+                        niceMeters = Math.round(meters / 100) * 100;
+                    } else {
+                        niceMeters = Math.round(meters);
+                    }
+
+                    if (niceMeters <= 0) {
+                        niceMeters = meters;
+                    }
+
+                    var newWidth = niceMeters / (resolution * metersPerUnit);
+                    document.getElementById('scale-line').style.width = newWidth + 'px';
+
+                    if (niceMeters >= 1000) {
+                        document.getElementById('scale-text').innerHTML =
+                            (niceMeters / 1000).toFixed(0) + ' km';
+                    } else {
+                        document.getElementById('scale-text').innerHTML =
+                            niceMeters.toFixed(0) + ' m';
+                    }
+                }
+
+                map.getView().on('change:resolution', updateScale);
+                map.getView().on('change:center', updateScale);
+                updateScale();
             }
+
+            addCustomControls();
         });
         </script>
     </body>
